@@ -2,50 +2,57 @@
 
 ## 1. My Responsibility in the Project
 
-As the primary frontend developer, you are responsible for the entire user interface, state management, client-side routing, and connecting the application to the backend API.
+I am responsible for approximately half of the application's end-to-end features, specifically focusing on the **Project Skeleton/Architecture**, **Visitor & Security Management**, **Complaints & Maintenance**, and **Facilities & Dashboards**. For these features, I handled everything from the MongoDB schemas and backend APIs to the React frontend UI and state management.
 
 **My Commits in Git History:**
-1. `250f327` — Initialize frontend structure and configurations
-2. `d34d93c` — Implement frontend entry points and global styling
-3. `4a704c3` — Add frontend state management and utility functions
-4. `7e71790` — Build reusable UI components and assets
-5. `3a54086` — Implement main pages and integrate frontend with backend
-6. `b04383a` — Finalize project integration and cleanup
+1. `7bf1a7d` — Initialize project skeleton, global configurations, and base utilities
+2. `cbaa1ad` — Build end-to-end visitor management and gate security workflows
+3. `9a819d6` — Create complaint ticketing and maintenance staff assignment system
+4. `7d599b7` — Add facility booking and parking allocation modules
+5. `5503eff` — Implement emergency SOS and build role-specific dashboards
 
-**What I should know about Nandan's work (Backend):**
-Nandan built the Express.js API and MongoDB database. His server handles the actual business logic, password hashing, and token generation. Whenever the frontend needs to save or fetch data, it must make an HTTP request to Nandan's API routes. Nandan's server enforces security on the backend by validating the JWT token we send in the headers.
+**What I should know about Nandan's work:**
+Nandan handled **Authentication**, **Billing**, and the **Marketplace**. If asked, I know that his authentication system issues a JWT token which my frontend stores in `localStorage` and attaches to subsequent requests. I understand his features conceptually, but I am the expert on the Project Skeleton, Visitor/Security logic, Complaints, and the Dashboards.
 
 ---
 
-## 2. Big Picture: Application Architecture
+## 2. End-to-End Flow (My Module Example: Visitor Approval)
 
 ```text
-User Interaction (Clicks Login)
+Resident Submits Visitor Form (`frontend/src/pages/resident/ResidentVisitors.jsx`)
  ↓
-React Component (`Login.jsx` state updates)
+Frontend Axios Call (`API.post('/visitors')`)
  ↓
-Axios API Call (`API.post('/auth/login')`)
- ↓ (Wait for network)
-Backend processes request (Nandan's code)
+Backend Express Route (`backend/src/routes/visitorRoutes.js`)
  ↓
-Response Data Received (JWT Token & User Data)
+Backend Controller (`backend/src/controllers/visitorController.js`)
  ↓
-React Context (`AuthContext.jsx` saves token & triggers re-render)
+Database Validation & Saving (`Visitor.create`)
  ↓
-React Router (`App.jsx` dynamically changes view based on role)
+Returns success + unique Entry Code
+ ↓
+Frontend generates and displays QR Code using the Entry Code
 ```
 
 ---
 
-## 3. Feature/Module 1: Protected Routing
+## 3. Feature 1: Frontend Architecture & Protected Routes
 
 ### What it does
 It ensures that unauthenticated users cannot access private pages, and restricts users to only see pages meant for their specific role (e.g., Residents can't see Super Admin pages).
 
 ### Files involved
-`frontend/src/App.jsx`
+- **Frontend:** `frontend/src/App.jsx`, `frontend/src/utils/api.js`
 
 ### Important code
+
+### File
+`frontend/src/App.jsx`
+
+### Function
+`Guard Component`
+
+### Original code
 
 ```jsx
 // ACTUAL CODE FROM THE PROJECT (frontend/src/App.jsx)
@@ -66,129 +73,105 @@ const R = (path, roles, element) => <Route key={path} path={path} element={<Guar
 ```
 
 ### Line-by-line explanation
-- `const { user } = useAuth()` consumes the global authentication state from our React Context.
-- `if (!user)` checks if the user is logged out. If they are, it redirects them to the login page immediately.
-- `if (roles && !roles.includes(user.role))` checks if the page requires specific roles, and whether the logged-in user possesses one of those roles. If not, it kicks them to their default dashboard.
-- `return children` renders the requested page if all security checks pass.
+- `const { user } = useAuth()` accesses the globally stored user session state.
+- `if (!user)` checks if they are completely logged out and redirects to `/login`.
+- `if (roles && !roles.includes(user.role))` checks if the page requires specific roles (like `['SOCIETY_ADMIN']`), and bounces the user to their default dashboard if they don't have permission.
+- `return children` renders the page successfully if all checks pass.
 
-### What examiner might ask
+### Examiner Questions
 
-**Q: How do you prevent a resident from accessing the admin dashboard?**
-**A:** We use the `<Guard>` component in React Router. We pass an array of allowed roles to it. Before rendering the requested route, the Guard checks the current user's role from the global context against the allowed roles. If it doesn't match, they are redirected via `<Navigate>`.
-
----
-
-## 4. Feature/Module 2: Global State Management
-
-### What it does
-It stores the user's session (JWT Token and Profile Data) globally so that any component in the app can access it without having to pass props down multiple levels.
-
-### Files involved
-`frontend/src/context/AuthContext.jsx`
-
-### Important code
-
-```jsx
-// ACTUAL CODE FROM THE PROJECT (frontend/src/context/AuthContext.jsx)
-  const login = useCallback((token, user) => {
-    localStorage.setItem("token", token);
-    localStorage.setItem("user", JSON.stringify(user));
-    setSession({ token, user });
-  }, []);
-
-  const logout = useCallback(() => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
-    setSession({ token: null, user: null });
-  }, []);
-```
-
-### Line-by-line explanation
-- `localStorage.setItem` saves the authentication token and user data directly to the browser. This ensures the user stays logged in even if they refresh the page or close the tab.
-- `JSON.stringify(user)` is necessary because `localStorage` can only store strings, not JavaScript objects.
-- `setSession({ token, user })` updates the React State. Because this is provided via Context, updating this state automatically triggers a re-render for any component using `useAuth()`.
-
-### What examiner might ask
-
-**Q: Why do you store the token in both React state and localStorage?**
-**A:** React state (`setSession`) is required so our UI updates immediately when the user logs in or out. However, React state clears when the page refreshes. We use `localStorage` for persistence, so we can rehydrate the state when the user comes back to the site.
+**Q: If a Resident manually types `/admin` in the URL bar, what happens?**
+**A:** The React Router tries to render the `<Guard>` component wrapped around the Admin route. The Guard checks the Resident's role, sees it doesn't match the required `['SOCIETY_ADMIN']` array, and immediately triggers a `<Navigate>` redirect before the page can even render.
 
 ---
 
-## 5. Feature/Module 3: API Integration & Component Logic
+## 4. Feature 2: Visitor Management & Gate Security
 
 ### What it does
-This is how the frontend actually talks to the backend. It takes user input from a form, sends it to the server, and handles the loading and error states.
+Residents can pre-approve expected visitors. The system generates an entry code, which the security guard can verify at the gate to allow entry.
 
 ### Files involved
-`frontend/src/pages/Login.jsx`
+- **Frontend:** `frontend/src/pages/resident/ResidentVisitors.jsx`, `frontend/src/pages/security/SecurityVerify.jsx`
+- **Backend:** `backend/src/controllers/visitorController.js`, `backend/src/models/Visitor.js`
 
 ### Important code
 
-```jsx
-// ACTUAL CODE FROM THE PROJECT (frontend/src/pages/Login.jsx)
-  const submit = async (e) => {
-    e.preventDefault();
-    setError(""); setLoading(true);
-    try {
-      const { data } = await API.post("/auth/login", { email: form.email.trim(), password: form.password });
-      login(data.token, data.user);
-      navigate(ROLE_HOME[data.user.role] || "/", { replace: true });
-    } catch (err) {
-      setError(errMsg(err, "Login failed. Please try again."));
-    } finally { 
-      setLoading(false); 
+### File
+`backend/src/controllers/visitorController.js`
+
+### Function
+`verifyVisitor()`
+
+### Original code
+
+```javascript
+// ACTUAL CODE FROM THE PROJECT (backend/src/controllers/visitorController.js)
+const verifyVisitor = async (req, res) => {
+  try {
+    const { entryCode } = req.body;
+    if (!entryCode) return res.status(400).json({ message: "Entry code is required" });
+
+    const visitor = await Visitor.findOne({ entryCode, societyId: req.user.societyId })
+      .populate("hostId", "name flatNumber phone");
+
+    if (!visitor) return res.status(404).json({ message: "Invalid entry code or not found" });
+
+    if (visitor.status !== "PENDING") {
+      return res.status(400).json({ 
+        message: `Visitor is already marked as ${visitor.status}`,
+        visitor 
+      });
     }
-  };
+
+    visitor.status = "APPROVED";
+    visitor.entryTime = new Date();
+    visitor.verifiedBy = req.user.id;
+    await visitor.save();
+
+    res.json({ message: "Visitor verified successfully", visitor });
+  } catch (error) {
+    res.status(500).json({ message: "Verification failed", error: error.message });
+  }
+};
 ```
 
 ### Line-by-line explanation
-- `e.preventDefault()` stops the browser from doing a traditional page reload when the form is submitted.
-- `setLoading(true)` updates the UI to show a loading spinner or disable the button to prevent double-clicks.
-- `await API.post(...)` uses Axios to send a POST request containing the email and password to Nandan's backend.
-- `login(...)` is called from our AuthContext to save the newly received token globally.
-- `navigate(...)` programmatically redirects the user to their specific dashboard based on their role.
+- `Visitor.findOne({ entryCode, societyId: req.user.societyId })` ensures the guard can only verify codes meant for their specific society.
+- `.populate("hostId", ...)` fetches the resident's details (flat number, phone) so the guard knows where the visitor is going.
+- `if (visitor.status !== "PENDING")` prevents a code from being used twice.
+- `visitor.status = "APPROVED"` and `await visitor.save()` updates the database to log the exact entry time and which guard verified them.
 
-### What examiner might ask
+### Examiner Questions
 
-**Q: What happens if the backend server is down or returns a 500 error?**
-**A:** The `try...catch` block handles it. The `await API.post` will throw an error, execution will jump to the `catch (err)` block, and `setError()` will update the UI to display a user-friendly error message without crashing the application.
+**Q: How does the system prevent someone from using an old, already-used QR code?**
+**A:** When the guard scans the code, my backend `verifyVisitor` controller checks if the visitor's status is still `"PENDING"`. If it has already been changed to `"APPROVED"`, the API immediately rejects the request with an error message.
+
+**Q: Where does `req.user.societyId` come from?**
+**A:** It comes from the JWT token that the security guard received when they logged in. Our API middleware decrypts the token and attaches the user's data to the `req` object.
 
 ---
 
-## 6. MOST IMPORTANT CODE TO MEMORIZE
+## 5. MOST IMPORTANT CODE TO MEMORIZE
 
 ### ⭐⭐⭐ MUST KNOW
-- **`App.jsx -> Guard component`**: Understand how Protected Routes work in React.
-- **`Login.jsx -> submit()`**: Understand how forms are handled, how API calls are made, and how `try/catch` is used.
+- **`backend/src/controllers/visitorController.js` -> `verifyVisitor()`**: Core logic for the security workflow.
+- **`frontend/src/App.jsx` -> `<Guard>`**: Core logic for frontend architecture.
 
 ### ⭐⭐ SHOULD KNOW
-- **`AuthContext.jsx`**: Understand how Context provides global state and how `localStorage` persists data.
+- **`backend/src/controllers/complaintController.js` -> `updateComplaintStatus()`**: Understand how maintenance staff updates ticket status.
 
 ### ⭐ GOOD TO KNOW
-- **Component State**: Know how `useState` hooks are used to bind input fields to React variables (`onChange={(e) => setForm(...)}`).
+- **`frontend/src/utils/api.js`**: Understand how Axios Interceptors automatically attach the JWT token to every request.
 
 ---
 
-## 7. End-to-End Flow Darsh Should Know
-
-**Scenario:** A user logs in.
-1. User types in the input fields. React's `onChange` updates the local `form` state.
-2. User clicks "Sign in". The `submit` function fires and calls `e.preventDefault()`.
-3. The frontend makes an HTTP POST request via Axios (`API.post`) to the backend.
-4. We wait for the backend to respond.
-5. Once data is returned, we call `login(data.token, data.user)` to save it in `AuthContext` and `localStorage`.
-6. Finally, we use React Router's `navigate()` to redirect the user to their specific dashboard based on their role (e.g. `/resident`).
-
----
-
-## 8. Emergency Revision
+## 6. Emergency Revision
 
 ### If I only have 30 minutes:
-Study the `submit` function inside `frontend/src/pages/Login.jsx`. It shows everything about how React handles forms, state, async API calls, error handling, and routing.
+Study `frontend/src/App.jsx` (the routing and guard logic) and `backend/src/controllers/visitorController.js`. You need to be able to explain how the frontend is protected and how a core end-to-end feature (visitors) works on the backend.
 
 ### If I have 1 hour:
-Study `Login.jsx` AND the `Guard` component inside `frontend/src/App.jsx`. You need to be able to explain how you prevent unauthorized users from accessing certain pages.
+Study the above AND `backend/src/controllers/complaintController.js`. Be ready to explain how users raise complaints and how you restrict maintenance staff to only updating tickets assigned to them.
 
 ### If I have 2 hours:
-Study the above, plus review `frontend/src/context/AuthContext.jsx` to explain how global state and `localStorage` work together to keep the user logged in.
+Study the above AND review `frontend/src/utils/api.js` to explain how Axios automatically injects the Auth token into the HTTP headers, acting as the bridge between your UI and your backend.

@@ -2,134 +2,59 @@
 
 ## 1. My Responsibility in the Project
 
-As the primary backend developer, you are responsible for the entire server-side architecture. This includes the database design, server initialization, authentication systems, security middleware, and RESTful API development.
+I am responsible for approximately half of the application's end-to-end features, specifically focusing on **Authentication/User Management**, **Billing/Invoicing**, and the **Marketplace & Notice Board**. For these features, I handled everything from the database models and backend APIs to the React frontend integration. I also managed the final integration and test coverage.
 
 **My Commits in Git History:**
-1. `56397d5` — Initialize project structure and base configurations
-2. `d9954e1` — Add database schemas, models, and configuration
-3. `c0881ce` — Implement backend foundation and middleware
-4. `e2a7922` — Create APIs, controllers, and routing logic
-5. `13ffd43` — Add backend tests and database seeding scripts
+1. `7b6eea6` — Implement authentication, role-based access control, and user management
+2. `c55069f` — Implement society billing, invoicing, and payment tracking
+3. `b876db1` — Develop resident marketplace and society notice board features
+4. `fa3b43e` — Finalize end-to-end integration, add seeders, and backend tests
 
-**What I should know about Darsh's work (Frontend):**
-Darsh handled the UI (React/Vite). He structured the frontend into contexts (global state), components (reusable UI), and pages. His routing layer (`App.jsx`) restricts users based on roles before they even make a request to my backend. His `API` utilities intercept my backend's responses and handle JWT injection on every request.
+**What I should know about Darsh's work:**
+Darsh handled the **Project Skeleton**, **Visitor/Security Management**, **Complaints/Maintenance**, and **Facilities/Dashboards**. If asked, I know that his visitor workflow uses QR codes (generated on the frontend and validated by his backend controller), and his complaint system allows residents to raise tickets which admins assign to maintenance staff. I understand his features conceptually, but I am the expert on Auth, Billing, and the Marketplace.
 
 ---
 
-## 2. Big Picture: Application Architecture
+## 2. End-to-End Flow (My Module Example: Authentication)
 
 ```text
-User (Web Browser)
- ↓ (HTTP Request over Network)
-Backend Server (Express)
- ↓ (Route Matching)
-Middleware (Authenticates JWT token)
- ↓ (Request passed)
-Controller (Business Logic: Validate, process)
- ↓ (Mongoose ODM)
-MongoDB Database
- ↓ (Returns Data)
-Controller formats response
- ↓ (HTTP 200/400/500 JSON)
-Frontend (Darsh's code parses and renders it)
+User Submits Login Form (`frontend/src/pages/Login.jsx`)
+ ↓
+Frontend Axios Call (`API.post('/auth/login')`)
+ ↓
+Backend Express Route (`backend/src/routes/authRoutes.js`)
+ ↓
+Backend Controller (`backend/src/controllers/authController.js`)
+ ↓
+Database Validation (`User.findOne` & Bcrypt Password Check)
+ ↓
+JWT Token Generated & Sent in Response
+ ↓
+Frontend Context updates globally (`AuthContext.jsx`)
+ ↓
+React Router redirects user to their specific dashboard
 ```
 
 ---
 
-## 3. Feature/Module 1: Server Initialization & Database
+## 3. Feature 1: Authentication & User Management
 
 ### What it does
-It connects to the MongoDB database and starts listening for HTTP requests on the specified port.
+It provides a secure, role-based login and registration system. Users receive a JWT token upon logging in, which dictates what they can access.
 
 ### Files involved
-`backend/src/server.js`
+- **Frontend:** `frontend/src/pages/Login.jsx`, `frontend/src/context/AuthContext.jsx`
+- **Backend:** `backend/src/controllers/authController.js`, `backend/src/models/User.js`
 
 ### Important code
 
-```javascript
-// ACTUAL CODE FROM THE PROJECT (backend/src/server.js)
-require("dotenv").config();
-const connectDB = require("./config/db");
-const app = require("./app");
-
-const PORT = process.env.PORT || 5000;
-
-// Connect to MongoDB first, then start accepting requests
-connectDB().then(() => {
-  app.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`);
-  });
-});
-```
-
-### Line-by-line explanation
-- `require("dotenv").config()` loads environment variables like the DB URI and Port.
-- `connectDB().then(...)` ensures that the database is successfully connected *before* we start listening for user requests. 
-- `app.listen(PORT, ...)` binds the Express app to the port so it can receive incoming HTTP requests.
-
-### What examiner might ask
-
-**Q: Why do you connect to the database before calling `app.listen()`?**
-**A:** If we start the server without a database connection, incoming API requests will fail immediately. Waiting for the database ensures the server is completely ready to handle traffic before it opens the port.
-
----
-
-## 4. Feature/Module 2: Database Schema (Mongoose)
-
-### What it does
-It defines the structure of a User document in the NoSQL MongoDB database, enforcing data types, required fields, and default values.
-
-### Files involved
-`backend/src/models/User.js`
-
-### Important code
-
-```javascript
-// ACTUAL CODE FROM THE PROJECT (backend/src/models/User.js)
-const mongoose = require("mongoose");
-
-const userSchema = new mongoose.Schema(
-  {
-    name: { type: String, required: true, trim: true },
-    email: { type: String, required: true, unique: true, lowercase: true, trim: true },
-    password: { type: String, required: true },
-    role: {
-      type: String,
-      enum: ["SUPER_ADMIN", "SOCIETY_ADMIN", "COMMITTEE_MEMBER", "RESIDENT", "SECURITY_GUARD", "MAINTENANCE_STAFF"],
-      default: "RESIDENT"
-    },
-    societyId: { type: mongoose.Schema.Types.ObjectId, ref: "Society", default: null },
-    // ...other fields
-  },
-  { timestamps: true }
-);
-
-module.exports = mongoose.model("User", userSchema);
-```
-
-### Line-by-line explanation
-- `mongoose.Schema` defines the blueprint.
-- `unique: true` enforces that no two users can have the same email.
-- `enum` restricts the `role` field to specific predefined string values.
-- `ref: "Society"` creates a relationship (foreign key equivalent) connecting the user to a specific Society document.
-- `{ timestamps: true }` automatically adds and manages `createdAt` and `updatedAt` fields.
-
-### What examiner might ask
-
-**Q: How does MongoDB enforce relationships if it's a NoSQL database?**
-**A:** MongoDB doesn't enforce strict foreign keys like SQL. Instead, we use Mongoose's `ref` property. This allows us to use `.populate('societyId')` in our controllers to automatically fetch the related Society data when we query a User.
-
----
-
-## 5. Feature/Module 3: Authentication & Business Logic
-
-### What it does
-It verifies a user's credentials against the database and issues a JSON Web Token (JWT) so the user can stay logged in.
-
-### Files involved
+### File
 `backend/src/controllers/authController.js`
 
-### Important code
+### Function
+`login()`
+
+### Original code
 
 ```javascript
 // ACTUAL CODE FROM THE PROJECT (backend/src/controllers/authController.js)
@@ -157,59 +82,127 @@ const login = async (req, res) => {
       process.env.JWT_SECRET,
       { expiresIn: "7d" }
     );
-    // ...returns response
+
+    res.status(200).json({
+      message: "Login successful",
+      token,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        societyId: user.societyId?._id || null,
+        societyName: user.societyId?.name || null,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ message: "Login failed", error: error.message });
+  }
+};
 ```
 
 ### Line-by-line explanation
-- `User.findOne({ email })` queries the database for the email.
-- `.populate("societyId", "name")` joins the society data so we can send the society name back to the frontend.
-- `bcrypt.compare` securely hashes the incoming password and compares it against the stored hashed password without ever decrypting the stored one.
-- `jwt.sign(...)` generates the secure token containing the user's ID and role, signed with a secret key.
+- `await User.findOne({ email })` queries MongoDB to find the user.
+- `.populate("societyId", "name")` acts like a SQL JOIN, fetching the actual society name rather than just the ID.
+- `bcrypt.compare` safely verifies the password hash without decrypting the stored password.
+- `jwt.sign(...)` creates an encrypted token containing the user's role, meaning the frontend and future API requests know exactly who this user is.
 
-### What examiner might ask
+### Examiner Questions
 
-**Q: Why don't you return specific errors like "Password incorrect" or "Email not found"?**
-**A:** For security reasons. Returning "Invalid email or password" prevents attackers from using our login endpoint to guess or enumerate which email addresses exist in our database.
+**Q: Why do you return "Invalid email or password" instead of telling them exactly which one is wrong?**
+**A:** This prevents malicious attackers from "enumerating" emails to figure out which email addresses are registered in our database.
 
 **Q: Why is `await` used here?**
-**A:** Database queries (`findOne`) and cryptographic operations (`bcrypt.compare`) are asynchronous. `await` pauses the function execution until the Promise resolves, preventing the code from proceeding before the data is ready.
+**A:** Database lookups and bcrypt operations are asynchronous. We must pause the function and wait for them to finish before we can make decisions based on their results.
 
 ---
 
-## 6. MOST IMPORTANT CODE TO MEMORIZE
+## 4. Feature 2: Billing, Invoicing & Payments
+
+### What it does
+Admins can generate maintenance bills for residents. Residents can view their pending bills and mark them as paid.
+
+### Files involved
+- **Frontend:** `frontend/src/pages/admin/AdminBilling.jsx`, `frontend/src/pages/resident/ResidentBills.jsx`
+- **Backend:** `backend/src/controllers/billingController.js`, `backend/src/models/Bill.js`
+
+### Important code
+
+### File
+`backend/src/controllers/billingController.js`
+
+### Function
+`createBill()`
+
+### Original code
+
+```javascript
+// ACTUAL CODE FROM THE PROJECT (backend/src/controllers/billingController.js)
+const createBill = async (req, res) => {
+  try {
+    const { userId, title, amount, dueDate, type, description } = req.body;
+    const adminId = req.user.id;
+    const societyId = req.user.societyId;
+
+    if (!userId || !title || !amount || !dueDate) {
+      return res.status(400).json({ message: "Missing required fields" });
+    }
+
+    const resident = await User.findOne({ _id: userId, societyId, role: "RESIDENT" });
+    if (!resident) return res.status(404).json({ message: "Resident not found in your society" });
+
+    const bill = await Bill.create({
+      societyId,
+      userId,
+      generatedBy: adminId,
+      title,
+      description,
+      amount,
+      type: type || "MAINTENANCE",
+      dueDate,
+      status: "PENDING"
+    });
+
+    res.status(201).json({ message: "Bill generated successfully", bill });
+  } catch (error) {
+    res.status(500).json({ message: "Failed to generate bill", error: error.message });
+  }
+};
+```
+
+### Line-by-line explanation
+- `req.user.id` and `req.user.societyId` are extracted from the authenticated user's JWT token by the auth middleware. This ensures the admin can only create bills for their own society.
+- `User.findOne(...)` verifies that the target user actually exists, belongs to the same society as the admin, and is indeed a RESIDENT.
+- `Bill.create(...)` saves the new bill to the MongoDB database with a default status of "PENDING".
+
+### Examiner Questions
+
+**Q: How do you ensure an admin cannot bill a resident in a completely different society?**
+**A:** I pull the `societyId` directly from the Admin's verified JWT token (`req.user.societyId`), and then I run a query `User.findOne({ _id: userId, societyId })`. If the resident's `societyId` doesn't match the admin's, the query fails.
+
+---
+
+## 5. MOST IMPORTANT CODE TO MEMORIZE
 
 ### ⭐⭐⭐ MUST KNOW
-- **`authController.js -> login()`**: Understand JWT signing and Bcrypt comparison.
-- **`User.js` model**: Understand how Mongoose schemas and relationships (`ref`) work.
+- **`backend/src/controllers/authController.js` -> `login()`**: The core of how the app handles security.
+- **`backend/src/controllers/billingController.js` -> `createBill()`**: Demonstrates typical CRUD logic and ownership validation.
 
 ### ⭐⭐ SHOULD KNOW
-- **`server.js`**: Connecting to DB before listening on the port.
+- **`frontend/src/context/AuthContext.jsx`**: Understand how the JWT token returned by your API is saved in React `localStorage`.
 
 ### ⭐ GOOD TO KNOW
-- **Mongoose `populate()`**: Know how to explain that this is Mongoose's way of doing SQL-like JOINs.
+- **`backend/src/models/User.js`**: Understand how Mongoose schemas work and how `ref` relates collections.
 
 ---
 
-## 7. End-to-End Flow Nandan Should Know
-
-**Scenario:** A user logs in.
-1. **Darsh's Frontend** sends a POST request with `{email, password}` to `/api/auth/login`.
-2. **Express Router** (`authRoutes.js`) routes the request to the `login` function.
-3. **Controller** (`authController.js`) extracts the email/password and queries the MongoDB Database using Mongoose (`User.findOne`).
-4. **Bcrypt** compares the password.
-5. **JWT** creates a signed token.
-6. **Controller** sends a `200 OK` JSON response containing the token and user profile.
-7. **Darsh's Frontend** saves the token and redirects the user.
-
----
-
-## 8. Emergency Revision
+## 6. Emergency Revision
 
 ### If I only have 30 minutes:
-Read and fully understand the `login` function in `backend/src/controllers/authController.js`. It contains all the core backend concepts: Async/Await, Database querying, password hashing, JWTs, and error handling.
+Study `authController.js` (Login and Registration). Be fully prepared to explain JWTs, Bcrypt, and how your backend validates incoming credentials.
 
 ### If I have 1 hour:
-Study the `login` function AND the Mongoose Schema in `backend/src/models/User.js`. Be ready to explain how `ref` and `populate` work.
+Study the above AND `billingController.js`. Understand how you validate that the admin creating a bill actually has jurisdiction over the resident they are billing (using the `societyId` from the JWT token).
 
 ### If I have 2 hours:
-Study the above, plus review how `server.js` initializes the application and connects to the database. Review how controllers are connected to routes.
+Study the above AND review the frontend `AuthContext.jsx` and `Login.jsx` to ensure you can explain the entire end-to-end flow of how your backend integrates with Darsh's frontend skeleton.
