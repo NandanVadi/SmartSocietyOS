@@ -4,9 +4,17 @@ const app = require("./app");
 
 const PORT = process.env.PORT || 5000;
 
-// Connect to MongoDB first, then start accepting requests
-connectDB().then(() => {
-  app.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`);
+if (process.env.VERCEL) {
+  // Vercel serverless environment
+  connectDB();
+} else {
+  // Local environment
+  connectDB().then(() => {
+    app.listen(PORT, () => {
+      console.log(`Server is running on port ${PORT}`);
+    });
   });
-});
+}
+
+// Required for Vercel serverless deployment
+module.exports = app;
