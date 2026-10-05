@@ -4,10 +4,7 @@ const app = require("./app");
 
 const PORT = process.env.PORT || 5000;
 
-if (process.env.VERCEL) {
-  // Vercel serverless environment
-  connectDB();
-} else {
+if (!process.env.VERCEL) {
   // Local environment
   connectDB().then(() => {
     app.listen(PORT, () => {

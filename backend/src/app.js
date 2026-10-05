@@ -28,6 +28,17 @@ app.use(
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
 
+// Ensure database connection before routing (Vercel Serverless requirement)
+const connectDB = require("./config/db");
+app.use(async (req, res, next) => {
+  try {
+    await connectDB();
+    next();
+  } catch (error) {
+    next(error);
+  }
+});
+
 // Routes
 const authRoutes = require("./routes/authRoutes");
 const societyRoutes = require("./routes/societyRoutes");
