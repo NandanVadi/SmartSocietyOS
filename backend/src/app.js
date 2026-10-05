@@ -13,7 +13,15 @@ const allowedOrigins = [
 
 app.use(
   cors({
-    origin: (origin, cb) => (!origin || allowedOrigins.includes(origin) ? cb(null, true) : cb(new Error("Not allowed by CORS"))),
+    origin: (origin, cb) => {
+      // Allow if no origin (e.g. server-to-server), if in allowedOrigins, or simply pass false to omit CORS headers 
+      // (which allows same-origin requests to still succeed without throwing a 500 error).
+      if (!origin || allowedOrigins.includes(origin)) {
+        cb(null, true);
+      } else {
+        cb(null, false); 
+      }
+    },
     credentials: true,
   })
 );
